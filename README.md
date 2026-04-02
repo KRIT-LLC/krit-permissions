@@ -37,7 +37,7 @@ git clone --recurse-submodules <url-вашего-приложения>
 
 Убедитесь, что submodule подтягивается до `npm ci` / `npm install`, иначе каталог `packages/krit-permissions` окажется пустым и сборка упадёт.
 
-### Обновление версии пакета
+### Обновление указателя submodule в приложении
 
 ```bash
 cd packages/krit-permissions
@@ -48,6 +48,25 @@ cd ../..
 git add packages/krit-permissions
 git commit -m "chore: bump krit-permissions submodule"
 ```
+
+### Версионирование (сопровождение репозитория пакета)
+
+Как у [krit-ui](https://github.com/KRIT-LLC/krit-ui): в `package.json` есть `npm version` без тега в чужом репозитории.
+
+Из корня **этого** репозитория (`krit-permissions`):
+
+```bash
+# только число версии в package.json (patch / minor / major)
+npm run version:patch
+npm run version:minor
+npm run version:major
+
+# то же через единый скрипт + опционально commit и тег vX.Y.Z в репозитории пакета
+npm run version:bump -- patch
+npm run version:bump -- minor --git
+```
+
+Скрипт: [scripts/bump-version.sh](scripts/bump-version.sh). Флаг `--git` добавляет коммит с `package.json` и аннотированный тег; отправка на сервер: `git push origin main && git push origin v$(node -p "require('./package.json').version")`.
 
 ## Установка зависимостей
 
