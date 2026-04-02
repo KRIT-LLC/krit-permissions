@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Версионирование пакета (аналогично подходу krit-ui: npm version … --no-git-tag-version).
+# Единственная точка версионирования: npm version … --no-git-tag-version.
 # Использование:
 #   ./scripts/bump-version.sh [patch|minor|major] [--git]
 #   npm run version:bump -- minor
