@@ -10,6 +10,14 @@ export type PermissionContextValue = {
 
 const PermissionContext = createContext<PermissionContextValue | null>(null);
 
+/** Код полномочия «все функции продукта» (суперпользователь). Должен совпадать с значением в OpenAPI / enum бэкенда. */
+export const ALL_FUNCTIONS_PERMISSION_CODE = 'AllFunctions' as const;
+
+export function hasPermission(permissionCodes: ReadonlySet<string>, code: string): boolean {
+  if (permissionCodes.has(ALL_FUNCTIONS_PERMISSION_CODE)) return true;
+  return permissionCodes.has(code);
+}
+
 function toSet(codes: Iterable<string> | null | undefined): Set<string> {
   if (codes == null) return new Set<string>();
   return new Set<string>(codes);
@@ -81,7 +89,7 @@ export function usePermissions(): PermissionContextValue {
 
 export function useHasPermission(code: string): boolean {
   const { permissionCodes } = usePermissions();
-  return permissionCodes.has(code);
+  return hasPermission(permissionCodes, code);
 }
 
 export type PermissionGateProps = {
@@ -98,10 +106,10 @@ export function PermissionGate({ anyOf, allOf, children, fallback = null }: Perm
 
   let allowed = true;
   if (allOf?.length) {
-    allowed = allOf.every((c) => permissionCodes.has(c));
+    allowed = allOf.every((c) => hasPermission(permissionCodes, c));
   }
   if (allowed && anyOf?.length) {
-    allowed = anyOf.some((c) => permissionCodes.has(c));
+    allowed = anyOf.some((c) => hasPermission(permissionCodes, c));
   }
   if (!allowed) return <>{fallback}</>;
   return <>{children}</>;
