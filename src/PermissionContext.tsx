@@ -4,17 +4,29 @@ export type PermissionTranslations = Record<string, string>;
 
 export type PermissionContextValue = {
   permissionCodes: ReadonlySet<string>;
+  /**
+   * Код полномочия «все функции продукта» (суперпользователь).
+   * Задаётся приложением (например из OpenAPI enum). Если не передан в провайдер — «полный доступ» не учитывается.
+   */
+  allFunctionsPermissionCode?: string;
   permissionsRaw?: unknown;
   translations?: PermissionTranslations;
 };
 
 const PermissionContext = createContext<PermissionContextValue | null>(null);
 
-/** Код полномочия «все функции продукта» (суперпользователь). Должен совпадать с значением в OpenAPI / enum бэкенда. */
-export const ALL_FUNCTIONS_PERMISSION_CODE = 'AllFunctions' as const;
-
-export function hasPermission(permissionCodes: ReadonlySet<string>, code: string): boolean {
-  if (permissionCodes.has(ALL_FUNCTIONS_PERMISSION_CODE)) return true;
+export function hasPermission(
+  permissionCodes: ReadonlySet<string>,
+  code: string,
+  allFunctionsPermissionCode?: string | null,
+): boolean {
+  if (
+    allFunctionsPermissionCode != null &&
+    allFunctionsPermissionCode !== '' &&
+    permissionCodes.has(allFunctionsPermissionCode)
+  ) {
+    return true;
+  }
   return permissionCodes.has(code);
 }
 
@@ -29,6 +41,11 @@ export type PermissionProviderProps = {
   permissionCodes?: Iterable<string> | null;
   /** Асинхронная подгрузка кодов, если не передан permissionCodes. */
   fetchPermissionCodes?: () => Promise<Iterable<string>>;
+  /**
+   * Код полномочия полного доступа к функциям продукта (например значение enum из контракта API).
+   * Задаётся только приложением, не внутри пакета.
+   */
+  allFunctionsPermissionCode?: string | null;
   /** Сырой ответ API для потребителей (без типизации DTO в пакете). */
   permissionsRaw?: unknown;
   translations?: PermissionTranslations;
@@ -39,6 +56,7 @@ export function PermissionProvider({
   children,
   permissionCodes: permissionCodesProp,
   fetchPermissionCodes,
+  allFunctionsPermissionCode: allFunctionsPermissionCodeProp,
   permissionsRaw,
   translations,
   fallback = null,
@@ -70,9 +88,19 @@ export function PermissionProvider({
     return fetched ?? new Set<string>();
   }, [permissionCodesProp, fetched]);
 
+  const allFunctionsPermissionCode =
+    allFunctionsPermissionCodeProp == null || allFunctionsPermissionCodeProp === ''
+      ? undefined
+      : allFunctionsPermissionCodeProp;
+
   const value = useMemo(
-    () => ({ permissionCodes, permissionsRaw, translations }),
-    [permissionCodes, permissionsRaw, translations],
+    () => ({
+      permissionCodes,
+      allFunctionsPermissionCode,
+      permissionsRaw,
+      translations,
+    }),
+    [permissionCodes, allFunctionsPermissionCode, permissionsRaw, translations],
   );
 
   if (loading) return <>{fallback}</>;
@@ -88,8 +116,8 @@ export function usePermissions(): PermissionContextValue {
 }
 
 export function useHasPermission(code: string): boolean {
-  const { permissionCodes } = usePermissions();
-  return hasPermission(permissionCodes, code);
+  const { permissionCodes, allFunctionsPermissionCode } = usePermissions();
+  return hasPermission(permissionCodes, code, allFunctionsPermissionCode);
 }
 
 export type PermissionGateProps = {
@@ -102,14 +130,14 @@ export type PermissionGateProps = {
 };
 
 export function PermissionGate({ anyOf, allOf, children, fallback = null }: PermissionGateProps) {
-  const { permissionCodes } = usePermissions();
+  const { permissionCodes, allFunctionsPermissionCode } = usePermissions();
 
   let allowed = true;
   if (allOf?.length) {
-    allowed = allOf.every((c) => hasPermission(permissionCodes, c));
+    allowed = allOf.every((c) => hasPermission(permissionCodes, c, allFunctionsPermissionCode));
   }
   if (allowed && anyOf?.length) {
-    allowed = anyOf.some((c) => hasPermission(permissionCodes, c));
+    allowed = anyOf.some((c) => hasPermission(permissionCodes, c, allFunctionsPermissionCode));
   }
   if (!allowed) return <>{fallback}</>;
   return <>{children}</>;

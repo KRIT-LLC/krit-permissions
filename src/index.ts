@@ -1,6 +1,5 @@
 export {
   AccessDenied,
-  ALL_FUNCTIONS_PERMISSION_CODE,
   PermissionGate,
   PermissionProvider,
   hasPermission,
